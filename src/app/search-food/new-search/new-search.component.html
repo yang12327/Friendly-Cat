@@ -3,7 +3,7 @@
   (foodSearchResult)="onFoodSearchResult($event)"></app-sider>
 
 
-<div class="container mx-auto my-3 p-6 bg-primary-white max-w-4xl" style="margin-top: 80px;">
+<div class="container mx-auto px-6 bg-primary-white max-w-4xl" style="margin-top: 80px;">
   <ng-container>
     <div class="flex items-center bg-primary-white justify-center mb-6 h-24">
       <img src="assets/S__222224406.jpg" alt="Friendly Superhero" class="w-24 h-24 sm:w-16 sm:h-16 md:w-24 md:h-24">
@@ -25,7 +25,7 @@
       </h5>
     </div>
     <!-- 提示訊息區域 -->
-    <div class="text-xs sm:text-sm text-success mb-4 text-center">
+    <div class="text-xs sm:text-sm text-success mb-3 text-center">
       <p>* 資訊僅供參考，請以店內商品為準</p>
     </div>
 
@@ -48,11 +48,27 @@
               </div>
               <!-- input框 -->
               <input mat-input type="search"
-                class="flex w-full flex-1 resize-none overflow-hidden rounded-lg text-primary-default focus:outline-none focus:ring-0 border-none bg-primary-light focus:border-transparent focus:bg-inherit h-full placeholder:text-primary-default px-4 rounded-r-lg rounded-l-none border-l-3 pl-2 text-base font-normal leading-normal"
+                class="flex w-full flex-1 resize-none overflow-hidden rounded-lg text-primary-default focus:outline-none focus:ring-0 border-none bg-primary-light focus:border-transparent focus:bg-inherit h-full placeholder:text-primary-default px-4 rounded-l-none border-l-3 pl-2 text-base font-normal leading-normal"
+                [ngClass]="isUsingHistoryLocation ? 'rounded-r-lg' : 'rounded-r-none'"
                 [matAutocomplete]="auto" [(ngModel)]="searchTerm" (input)="onInput($event)" (keydown)="onKeyDown($event)"
                 (focus)="onSearchFocus()"
                 enterkeyhint="search"
                 placeholder="輸入店名或地址搜尋" name="first" />
+
+              <!-- 目前位置按鈕（整合到 input 右側） -->
+              <button type="button" (click)="onUseCurrentLocation()"
+                class="flex shrink-0 items-center justify-center gap-1 px-3 bg-success text-white rounded-r-lg hover:opacity-90 transition-opacity"
+                aria-label="使用目前位置" title="使用目前位置">
+                <div class="text-white" data-icon="Gps" data-size="20px" data-weight="regular">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor"
+                    viewBox="0 0 256 256">
+                    <path
+                      d="M128,24a8,8,0,0,0-8,8V48.58A80.15,80.15,0,0,0,48.58,120H32a8,8,0,0,0,0,16H48.58A80.15,80.15,0,0,0,120,207.42V224a8,8,0,0,0,16,0V207.42A80.15,80.15,0,0,0,207.42,136H224a8,8,0,0,0,0-16H207.42A80.15,80.15,0,0,0,136,48.58V32A8,8,0,0,0,128,24Zm0,168a64,64,0,1,1,64-64A64.07,64.07,0,0,1,128,192Zm0-104a40,40,0,1,0,40,40A40,40,0,0,0,128,88Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,152Z">
+                    </path>
+                  </svg>
+                </div>
+                <span class="hidden sm:inline text-xs md:text-sm font-bold leading-normal tracking-[0.015em]">目前位置</span>
+              </button>
             </div>
           </label>
         </div>
@@ -106,41 +122,21 @@
         </ng-container>
       </mat-autocomplete>
 
-      <!-- 使用目前位置按鈕開始（顯示「重新定位」時隱藏） -->
-      <div *ngIf="!isUsingHistoryLocation" class="flex px-4 py-3 justify-center items-center">
-        <button type="button" (click)="onUseCurrentLocation()"
-          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-success text-white gap-2 pl-4 text-sm font-bold leading-normal tracking-[0.015em] text-xs sm:text-sm md:text-base">
-          <div class="text-white" data-icon="MapPin" data-size="20px" data-weight="regular">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor"
-              viewBox="0 0 256 256">
-              <path
-                d="M128,64a40,40,0,1,0,40,40A40,40,0,0,0,128,64Zm0,64a24,24,0,1,1,24-24A24,24,0,0,1,128,128Zm0-112a88.1,88.1,0,0,0-88,88c0,31.4,14.51,64.68,42,96.25a254.19,254.19,0,0,0,41.45,38.3,8,8,0,0,0,9.18,0A254.19,254.19,0,0,0,174,200.25c27.45-31.57,42-64.85,42-96.25A88.1,88.1,0,0,0,128,16Zm0,206c-16.53-13-72-60.75-72-118a72,72,0,0,1,144,0C200,161.23,144.53,209,128,222Z">
-              </path>
-            </svg>
-          </div>
-          <span class="truncate">使用目前位置</span>
-        </button>
-      </div>
-      <!-- 使用目前位置按鈕結束 -->
     </form>
   </ng-container>
 </div>
 
 
 <!-- 使用歷史位置提示 -->
-<div *ngIf="isUsingHistoryLocation && totalStoresShowList.length > 0" class="flex justify-center">
-  <div class="w-full lg:w-4/5 max-w-screen-lg px-4">
-    <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4">
+<div *ngIf="isUsingHistoryLocation && totalStoresShowList.length > 0" class="flex justify-center px-2">
+  <div class="w-full lg:w-4/5 max-w-screen-lg px-4 py-1">
+    <div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3">
       <div class="flex items-center gap-2">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#B45309" viewBox="0 0 256 256">
           <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z"/>
         </svg>
         <span class="text-amber-800 text-xs sm:text-sm">GPS 定位失敗，目前顯示上次搜尋位置附近的結果</span>
       </div>
-      <button type="button" (click)="onUseCurrentLocation()"
-        class="text-xs sm:text-sm text-white bg-success rounded-lg px-3 py-1 whitespace-nowrap hover:opacity-80">
-        重新定位
-      </button>
     </div>
   </div>
 </div>
@@ -152,15 +148,15 @@
 <ng-template #locationSearchMode>
   <!-- 711與全家店家頁面 -->
   <ng-container *ngFor="let store of totalStoresShowList; trackBy: trackByStore">
-    <div *ngIf="totalStoresShowList.length > 0" class="flex justify-center">
+    <div *ngIf="totalStoresShowList.length > 0" class="flex justify-center px-2">
       <div class="w-full lg:w-4/5 max-w-screen-lg">
         <!-- 711區塊 -->
-        <div *ngIf="store.label === '7-11'" class="store p-4 border border-gray-300 rounded-lg shadow-md mb-6"
+        <div *ngIf="store.label === '7-11'" class="store p-4 border border-gray-300 rounded-lg shadow-md mt-3"
           [ngStyle]="{'opacity': isStoreEmpty(store) ? 0.4 : 1}">
           <ng-container>
             <!-- 距離 + 更新時間 -->
-<!-- 商店資訊開始 -->
-            <div class="flex items-center gap-4 bg-primary-white px-4 min-h-[72px] py-2 justify-between">
+            <!-- 商店資訊開始 -->
+            <div class="flex items-center bg-primary-white min-h-[72px]">
               <div class="flex items-center gap-4 w-full">
                 <div
                   class="text-dark border border-gray-200 flex items-center justify-center rounded-lg bg-primary-light shrink-0 size-12"
@@ -169,18 +165,18 @@
                     sevenElevenIconUrl" alt="Store Icon" width="24px" height="24px" fill="currentColor" />
                 </div>
                 <div class="flex w-full flex-col gap-1 text-lg sm:text-xl font-semibold">
-                  <div class="flex w-full items-center justify-between gap-3">
+                  <div class="flex w-full items-center gap-3">
                     <span *ngIf="store.distance >= 1" class="text-success text-sm font-normal leading-normal whitespace-nowrap">
-                      距離: {{ store.distance | round:1 }}
+                      距離：{{ store.distance | round:1 }}
                     </span>
-                    <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal">
-                      更新: {{ formatUpdateDate(store.updateDate) }}
+                    <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal ml-auto">
+                      更新：{{ formatUpdateDate(store.updateDate) }}
                     </span>
                   </div>
-                  <h2 class="text-dark text-base font-medium leading-normal line-clamp-1 store-title">
+                  <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
                     7-11{{ store.StoreName }}門市
                     <a href="https://www.google.com/maps/search/7-ELEVEN{{ store.StoreName }}門市" target="_blank"
-                      class="ml-2">
+                      class="ml-auto">
                       <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
                     </a>
                   </h2>
@@ -206,8 +202,8 @@
             <!-- 商店資訊結束 -->
 
             <!-- 食物分類區塊 -->
-            <div *ngIf="store.RemainingQty > 0" class="food-categories mt-4">
-              <div class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-1">
+            <div *ngIf="store.RemainingQty > 0" class="food-categories mt-3">
+              <div class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-1">
                 <ng-container *ngFor="let category of foodCategories | slice:0:10; let i = index; trackBy: trackByCategory">
                   <div *ngIf="getSubCategoryTotalQty(store, category) > 0" class="border border-primary-light p-1 sm:p-3 md:p-4 rounded-lg text-center cursor-pointer w-full
                       {{ store.selectedCategory === category ? 'bg-primary-light' : '' }}"
@@ -239,11 +235,11 @@
         </div>
 
         <!-- 全家區塊 -->
-        <div class="store p-4 border border-gray-300 rounded-lg shadow-md mb-6" *ngIf="store.label === '全家'"
+        <div class="store p-4 border border-gray-300 rounded-lg shadow-md mt-3" *ngIf="store.label === '全家'"
           [ngStyle]="{'opacity': isStoreEmpty(store) ? 0.4 : 1}">
           <!-- 距離 + 更新時間 -->
-<!-- 商店資訊開始 -->
-          <div class="flex items-center gap-4 bg-primary-white px-4 min-h-[72px] py-2 justify-between">
+          <!-- 商店資訊開始 -->
+          <div class="flex items-center bg-primary-white min-h-[72px]">
             <div class="flex items-center gap-4 w-full">
               <div
                 class="text-dark border border-gray-200 flex items-center justify-center rounded-lg bg-primary-light shrink-0 size-12"
@@ -252,18 +248,18 @@
                   familyMartIconUrl" alt="Store Icon" width="24px" height="24px" fill="currentColor" />
               </div>
               <div class="flex w-full flex-col gap-1 text-lg sm:text-xl font-semibold">
-                <div class="flex w-full items-center justify-between gap-3">
+                <div class="flex w-full items-center gap-3">
                   <span *ngIf="store.distance >= 1" class="text-success text-sm font-normal leading-normal whitespace-nowrap">
-                    距離: {{ store.distance | round:1 }}
+                    距離：{{ store.distance | round:1 }}
                   </span>
-                  <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal">
-                    更新: {{ formatUpdateDate(store.updateDate) }}
+                  <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal ml-auto">
+                    更新：{{ formatUpdateDate(store.updateDate) }}
                   </span>
                 </div>
-                <h2 class="text-dark text-base font-medium leading-normal line-clamp-1 store-title">
+                <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
                   {{ store.name }}
                   <a href="https://www.google.com/maps/search/全家便利商店{{ fStoreName(store.name) }}" target="_blank"
-                    class="ml-2">
+                    class="ml-auto">
                     <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
                   </a>
                 </h2>
@@ -288,7 +284,7 @@
           </div>
           <!-- 商店資訊結束 -->
 
-          <div *ngIf="store.info && store.info.length > 0" class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-1">
+          <div *ngIf="store.info && store.info.length > 0" class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-1 mt-3">
             <div *ngFor="let category of store.info | slice:0:10; let i = index; trackBy: trackByCategory" class="border border-primary-light p-1 sm:p-3 md:p-4 rounded-lg text-center cursor-pointer w-full
             {{ store.selectedCategory === category ? 'bg-primary-light' : '' }}"
               (click)="toggleSubCategoryDetails(store, category)"
@@ -321,7 +317,7 @@
 
   <!-- 目標商店為空的提示訊息區塊 -->
   <ng-container *ngIf="totalStoresShowList[0]?.distance > 1 || totalStoresShowList[0]?.remainingQty === 0">
-    <div class="flex justify-center">
+    <div class="flex justify-center px-2">
       <div class="w-full lg:w-4/5 max-w-screen-lg">
         <div class="text-center text-primary-default text-lg font-bold mt-4">
           您搜尋的商店目前無折扣商品，以下為附近店家：
@@ -333,15 +329,15 @@
 
   <!-- 711與全家店家頁面 -->
   <ng-container *ngFor="let store of totalStoresShowList; trackBy: trackByStore">
-    <div *ngIf="totalStoresShowList.length > 0" class="flex justify-center">
+    <div *ngIf="totalStoresShowList.length > 0" class="flex justify-center px-2">
       <div class="w-full lg:w-4/5 max-w-screen-lg">
         <!-- 711區塊 -->
-        <div *ngIf="store.label === '7-11'" class="store p-4 border border-gray-300 rounded-lg shadow-md mb-6"
+        <div *ngIf="store.label === '7-11'" class="store p-4 border border-gray-300 rounded-lg shadow-md mb-4"
           [ngStyle]="{'opacity': isStoreEmpty(store) ? 0.4 : 1}">
           <ng-container>
             <!-- 距離 + 更新時間 -->
 <!-- 商店資訊開始 -->
-            <div class="flex items-center gap-4 bg-primary-white px-4 min-h-[72px] py-2 justify-between">
+            <div class="flex items-center bg-primary-white min-h-[72px]">
               <div class="flex items-center gap-4 w-full">
                 <div
                   class="text-dark border border-gray-200 flex items-center justify-center rounded-lg bg-primary-light shrink-0 size-12"
@@ -350,18 +346,18 @@
                     sevenElevenIconUrl" alt="Store Icon" width="24px" height="24px" fill="currentColor" />
                 </div>
                 <div class="flex w-full flex-col gap-1 text-lg sm:text-xl font-semibold">
-                  <div class="flex w-full items-center justify-between gap-3">
+                  <div class="flex w-full items-center gap-3">
                     <span *ngIf="store.distance >= 1" class="text-success text-sm font-normal leading-normal whitespace-nowrap">
-                      距離: {{ store.distance | round:1 }}
+                      距離：{{ store.distance | round:1 }}
                     </span>
-                    <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal">
-                      更新: {{ formatUpdateDate(store.updateDate) }}
+                    <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal ml-auto">
+                      更新：{{ formatUpdateDate(store.updateDate) }}
                     </span>
                   </div>
-                  <h2 class="text-dark text-base font-medium leading-normal line-clamp-1 store-title">
+                  <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
                     7-11{{ store.StoreName }}門市
                     <a href="https://www.google.com/maps/search/7-ELEVEN{{ store.StoreName }}門市" target="_blank"
-                      class="ml-2">
+                      class="ml-auto">
                       <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
                     </a>
                   </h2>
@@ -387,7 +383,7 @@
             <!-- 商店資訊結束 -->
 
             <!-- 食物分類區塊 -->
-            <div *ngIf="store.RemainingQty > 0" class="food-categories mt-4">
+            <div *ngIf="store.RemainingQty > 0" class="food-categories mt-3">
               <div class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-1">
                 <ng-container *ngFor="let category of foodCategories | slice:0:10; let i = index; trackBy: trackByCategory">
                   <div *ngIf="getSubCategoryTotalQty(store, category) > 0" class="border border-primary-light p-1 sm:p-3 md:p-4 rounded-lg text-center cursor-pointer w-full
@@ -420,11 +416,11 @@
         </div>
 
         <!-- 全家區塊 -->
-        <div class="store p-4 border border-gray-300 rounded-lg shadow-md mb-6" *ngIf="store.label === '全家'"
+        <div class="store p-4 border border-gray-300 rounded-lg shadow-md mb-4" *ngIf="store.label === '全家'"
           [ngStyle]="{'opacity': isStoreEmpty(store) ? 0.4 : 1}">
           <!-- 距離 + 更新時間 -->
 <!-- 商店資訊開始 -->
-          <div class="flex items-center gap-4 bg-primary-white px-4 min-h-[72px] py-2 justify-between">
+          <div class="flex items-center bg-primary-white min-h-[72px]">
             <div class="flex items-center gap-4 w-full">
               <div
                 class="text-dark border border-gray-200 flex items-center justify-center rounded-lg bg-primary-light shrink-0 size-12"
@@ -433,18 +429,18 @@
                   familyMartIconUrl" alt="Store Icon" width="24px" height="24px" fill="currentColor" />
               </div>
               <div class="flex w-full flex-col gap-1 text-lg sm:text-xl font-semibold">
-                <div class="flex w-full items-center justify-between gap-3">
+                <div class="flex w-full items-center gap-3">
                   <span *ngIf="store.distance >= 1" class="text-success text-sm font-normal leading-normal whitespace-nowrap">
-                    距離: {{ store.distance | round:1 }}
+                    距離：{{ store.distance | round:1 }}
                   </span>
-                  <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal">
-                    更新: {{ formatUpdateDate(store.updateDate) }}
+                  <span *ngIf="store.updateDate" class="text-xs text-gray-400 whitespace-nowrap font-normal ml-auto">
+                    更新：{{ formatUpdateDate(store.updateDate) }}
                   </span>
                 </div>
-                <h2 class="text-dark text-base font-medium leading-normal line-clamp-1 store-title">
+                <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
                   {{ store.name }}
                   <a href="https://www.google.com/maps/search/全家便利商店{{ fStoreName(store.name) }}" target="_blank"
-                    class="ml-2">
+                    class="ml-auto">
                     <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
                   </a>
                 </h2>
@@ -469,7 +465,7 @@
           </div>
           <!-- 商店資訊結束 -->
 
-          <div *ngIf="store.info && store.info.length > 0" class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-1">
+          <div *ngIf="store.info && store.info.length > 0" class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-4 gap-1 mt-3">
             <div *ngFor="let category of store.info | slice:0:10; let i = index; trackBy: trackByCategory" class="border border-primary-light p-1 sm:p-3 md:p-4 rounded-lg text-center cursor-pointer w-full
             {{ store.selectedCategory === category ? 'bg-primary-light' : '' }}"
               (click)="toggleSubCategoryDetails(store, category)"

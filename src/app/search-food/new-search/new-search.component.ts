@@ -903,10 +903,30 @@ export class NewSearchComponent implements OnInit {
   }
 
   onFavoriteStoreSearch(store: any) {
-    this.loadingService.show("幫你找看看唷");
-    // 從本地 JSON 資料找出店家的經緯度
-    var lat = 0;
-    var lng = 0;
+    // 側欄已改為歷史記錄，優先處理歷史資料格式
+    const historyLat = Number(store?.latitude);
+    const historyLng = Number(store?.longitude);
+    if (
+      store &&
+      typeof store?.name === 'string' &&
+      typeof store?.label === 'string' &&
+      !Number.isNaN(historyLat) &&
+      !Number.isNaN(historyLng)
+    ) {
+      this.selectSearchHistory({
+        name: store.name,
+        label: store.label,
+        addr: store.addr || '',
+        latitude: historyLat,
+        longitude: historyLng
+      });
+      return;
+    }
+
+    this.loadingService.show("撈取店家資料中");
+    // 舊版收藏格式相容處理
+    let lat = 0;
+    let lng = 0;
     if (store.label === "全家") {
       lat = store.storeFLatitude;
       lng = store.storeFLongitude;
@@ -914,19 +934,19 @@ export class NewSearchComponent implements OnInit {
       this.searchTerm = '';
     }
     else {
-      // 從本地 7-11 商店資料中尋找
-      const foundStore = this.all711Stores.find(s => 
-        s.name === store.store711Name || 
+      // 搜尋 7-11 門市資料
+      const foundStore = this.all711Stores.find(s =>
+        s.name === store.store711Name ||
         (store.store711Name && s.name.includes(store.store711Name.replace('711', '').trim()))
       );
-      
+
       if (foundStore) {
         lat = parseFloat(foundStore.lat);
         lng = parseFloat(foundStore.lng);
         this.onOptionSelect(null, lat, lng);
         this.searchTerm = '';
       } else {
-        // 如果找不到，使用拼音比對再次搜尋（不呼叫 GPS）
+        // 找不到完整名稱時，使用拼音模糊比對
         const searchTerm = store.store711Name?.replace('711', '').trim() || '';
         const matchedStore = this.all711Stores.find(s =>
           this.matchesSearchTerm(s.name, s.name_pinyin || '', searchTerm)
@@ -938,14 +958,14 @@ export class NewSearchComponent implements OnInit {
           this.onOptionSelect(null, lat, lng);
           this.searchTerm = '';
         } else {
-          console.error('找不到 7-11 商店:', store.store711Name);
+          console.error('找不到 7-11 門市:', store.store711Name);
           this.loadingService.hide();
         }
       }
     }
   }
 
-  // 處理食物搜尋結果
+  // 食物搜尋結果
   onFoodSearchResult(result: any) {
     this.loadingService.show("正在跳轉到商店...");
     

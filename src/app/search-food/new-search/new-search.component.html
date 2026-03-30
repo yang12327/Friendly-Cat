@@ -1,4 +1,4 @@
-﻿<app-sider [user]="user" [favoriteStores]="favoriteStores" (userUpdated)="onUserUpdated($event)"
+<app-sider [user]="user" [favoriteStores]="searchHistory" (userUpdated)="onUserUpdated($event)"
   (favoriteStoresUpdated)="onFavoriteStoresUpdated($event)" (searchStore)="onFavoriteStoreSearch($event)"
   (foodSearchResult)="onFoodSearchResult($event)"></app-sider>
 
@@ -332,7 +332,7 @@
     <div *ngIf="totalStoresShowList.length > 0" class="flex justify-center px-2">
       <div class="w-full lg:w-4/5 max-w-screen-lg">
         <!-- 711區塊 -->
-        <div *ngIf="store.label === '7-11'" class="store p-4 border border-gray-300 rounded-lg shadow-md mb-4"
+        <div *ngIf="store.label === '7-11'" class="store p-4 border border-gray-300 rounded-lg shadow-md mt-3"
           [ngStyle]="{'opacity': isStoreEmpty(store) ? 0.4 : 1}">
           <ng-container>
             <!-- 距離 + 更新時間 -->
@@ -416,7 +416,7 @@
         </div>
 
         <!-- 全家區塊 -->
-        <div class="store p-4 border border-gray-300 rounded-lg shadow-md mb-4" *ngIf="store.label === '全家'"
+        <div class="store p-4 border border-gray-300 rounded-lg shadow-md mt-3" *ngIf="store.label === '全家'"
           [ngStyle]="{'opacity': isStoreEmpty(store) ? 0.4 : 1}">
           <!-- 距離 + 更新時間 -->
 <!-- 商店資訊開始 -->

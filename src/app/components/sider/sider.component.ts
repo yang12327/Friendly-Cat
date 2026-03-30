@@ -22,7 +22,7 @@ export class SiderComponent {
 
   @Output() userUpdated = new EventEmitter<any>();
   @Output() favoriteStoresUpdated = new EventEmitter<any>();
-  @Output() searchStore = new EventEmitter<string>();
+  @Output() searchStore = new EventEmitter<any>();
   @Output() foodSearchResult = new EventEmitter<any>();
 
   sevenElevenIconUrl = environment.sevenElevenUrl.icon;
@@ -117,11 +117,20 @@ export class SiderComponent {
 
   // 搜尋框輸入變化
   onSearchInputChange() {
+    const keyword = this.foodSearchTerm?.trim() ?? '';
+
     // 如果搜尋框被清空，重置搜尋狀態
-    if (!this.foodSearchTerm || this.foodSearchTerm.trim().length === 0) {
+    if (keyword.length === 0) {
       this.hasSearched = false;
       this.foodSearchResults = [];
+      this.isSearching = false;
+      return;
     }
+
+    // 改為輸入即觸發搜尋
+    this.isSearching = true;
+    this.hasSearched = true;
+    this.searchFoodInStores(keyword);
   }
 
   // 獲取搜尋框提示文字
@@ -140,60 +149,81 @@ export class SiderComponent {
     this.isSearching = true;
     const results: any[] = [];
 
-    // 從 StoreDataService 獲取已載入的商店資料
+    // 從 StoreDataService 取得目前畫面上的門市資料
     const stores = this.storeDataService.getStores();
-    
+
     if (!stores || stores.length === 0) {
       this.foodSearchResults = [];
       this.isSearching = false;
       return;
     }
 
-    // 搜尋全家商品（直接搜尋）
-    stores.forEach((store: any, storeIndex: number) => {
-        if (store.label === '全家' && store.info) {
-          // 搜尋全家商品
-          store.info.forEach((category: any, catIndex: number) => {
-            if (category.categories) {
-              category.categories.forEach((subCategory: any, subCatIndex: number) => {
-                if (subCategory.products) {
-                  subCategory.products.forEach((product: any, productIndex: number) => {
-                    if (product.name) {
-                      const matchScore = this.calculateMatchScore(product.name, searchTerm);
-                      if (searchTerm.length === 0 || matchScore > 0) {
-                        results.push({
-                          foodName: product.name,
-                          storeName: store.name,
-                          storeType: '全家',
-                          store: {
-                            ...store,
-                            latitude: store.latitude,
-                            longitude: store.longitude
-                          },
-                          distance: store.distance,
-                          remainingQty: product.qty,
-                          matchScore: matchScore
-                        });
-                      }
-                    }
-                  });
-                }
+    stores.forEach((store: any) => {
+      // 搜尋全家商品
+      if (store.label === '全家' && store.info) {
+        store.info.forEach((category: any) => {
+          if (!category.categories) return;
+
+          category.categories.forEach((subCategory: any) => {
+            if (!subCategory.products) return;
+
+            subCategory.products.forEach((product: any) => {
+              if (!product.name) return;
+
+              const matchScore = this.calculateMatchScore(product.name, searchTerm);
+              if (searchTerm.length === 0 || matchScore > 0) {
+                results.push({
+                  foodName: product.name,
+                  storeName: store.name,
+                  storeType: '全家',
+                  store: {
+                    ...store,
+                    latitude: store.latitude,
+                    longitude: store.longitude
+                  },
+                  distance: store.distance,
+                  remainingQty: product.qty,
+                  matchScore: matchScore
+                });
+              }
+            });
+          });
+        });
+      }
+
+      // 搜尋 7-11 商品（直接使用已載入的 CategoryStockItems，避免額外 API 失敗）
+      if (store.label === '7-11' && store.CategoryStockItems) {
+        store.CategoryStockItems.forEach((category: any) => {
+          if (!category.ItemList) return;
+
+          category.ItemList.forEach((item: any) => {
+            if (!item.ItemName) return;
+
+            const matchScore = this.calculateMatchScore(item.ItemName, searchTerm);
+            if (searchTerm.length === 0 || matchScore > 0) {
+              results.push({
+                foodName: item.ItemName,
+                storeName: `7-11${store.StoreName}門市`,
+                storeType: '7-11',
+                store: {
+                  ...store,
+                  Latitude: store.Latitude,
+                  Longitude: store.Longitude
+                },
+                distance: store.Distance ?? store.distance,
+                remainingQty: item.RemainingQty,
+                matchScore: matchScore
               });
             }
           });
-        }
+        });
+      }
     });
 
-    // 搜尋 7-11 商品（需要額外 API 呼叫）
-    const sevenElevenStores = stores.filter(store => store.label === '7-11');
-    if (sevenElevenStores.length > 0) {
-      this.searchSevenElevenProducts(sevenElevenStores, searchTerm, results);
-    } else {
-      this.finalizeSearchResults(results);
-    }
+    this.finalizeSearchResults(results);
   }
 
-  // 搜尋 7-11 商品（透過額外 API）
+  // 搜尋 7-11 商品（保留舊版 API 流程，暫未使用）
   searchSevenElevenProducts(sevenElevenStores: any[], searchTerm: string, results: any[]) {
     const apiCalls = sevenElevenStores.map(store => 
       this.sevenElevenService.getItemsByStoreNo(store.StoreNo).pipe(

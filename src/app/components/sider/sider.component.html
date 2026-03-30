@@ -1,6 +1,4 @@
-<!-- 頂部工具欄 -->
 <mat-toolbar class="toolbar">
-  <!-- 菜單按鈕 -->
   <button mat-icon-button (click)="toggleSidebar()" aria-label="Menu">
     <mat-icon>menu</mat-icon>
   </button>
@@ -8,14 +6,11 @@
   <span class="text-with-shadow">友善黑貓 Friendly Cat</span>
 </mat-toolbar>
 
-<!-- 側邊欄遮罩 -->
 <div class="sidebar-overlay" [class.active]="sidebarOpen" (click)="closeSidebar()"></div>
 
-<!-- 側邊欄 -->
 <div class="sidebar" [class.open]="sidebarOpen">
-  <!-- 側邊欄標題 -->
   <div class="sidebar-header">
-    <h3>{{user ? "友善黑貓 Friendly Cat" : "登入後可收藏店家"}}</h3>
+    <h3>友善黑貓 Friendly Cat</h3>
     <button mat-icon-button (click)="closeSidebar()" class="close-btn">
       <mat-icon>close</mat-icon>
     </button>
@@ -23,26 +18,24 @@
 
   <mat-divider></mat-divider>
 
-  <!-- 食物搜尋區域 -->
   <div class="search-section">
     <div class="search-header">
       <mat-icon class="search-icon">search</mat-icon>
       <span class="search-title">搜尋食物</span>
     </div>
-    
+
     <div class="search-input-container">
       <div class="search-input-wrapper">
-        <input 
-          type="text" 
-          [(ngModel)]="foodSearchTerm" 
-          (keyup.enter)="onSearchClick()"
+        <input
+          type="text"
+          [(ngModel)]="foodSearchTerm"
           (input)="onSearchInputChange()"
           [placeholder]="getSearchPlaceholder()"
           [disabled]="!hasStoreData"
           class="search-input"
         />
-        <button 
-          class="search-button" 
+        <button
+          class="search-button"
           (click)="onSearchClick()"
           [disabled]="!hasStoreData"
         >
@@ -51,14 +44,13 @@
       </div>
     </div>
 
-    <!-- 搜尋結果 -->
     <div class="search-results" *ngIf="foodSearchResults.length > 0">
       <div class="result-header">
         <span class="result-count">找到 {{ foodSearchResults.length }} 個結果</span>
       </div>
       <div class="result-list">
-        <div 
-          *ngFor="let result of foodSearchResults" 
+        <div
+          *ngFor="let result of foodSearchResults"
           class="result-item"
           (click)="onFoodResultClick(result); closeSidebar()"
         >
@@ -66,15 +58,10 @@
             <span class="food-name">{{ result.foodName }}</span>
             <div class="store-details">
               <span class="store-name">{{ result.storeName }}</span>
-              <!-- <span class="store-type">{{ result.storeType }}</span> -->
-              <!-- <span class="store-distance" *ngIf="result.distance">
-                <mat-icon class="distance-icon">location_on</mat-icon>
-                {{ result.distance | number:'1.1-1' }} 公里
-              </span> -->
             </div>
             <div class="click-hint">
               <mat-icon class="hint-icon">touch_app</mat-icon>
-              <span>點擊前往該商店</span>
+              <span>點擊可跳到門市</span>
             </div>
           </div>
           <mat-icon class="arrow-icon">arrow_forward_ios</mat-icon>
@@ -82,13 +69,11 @@
       </div>
     </div>
 
-    <!-- 無搜尋結果 -->
     <div class="no-results" *ngIf="hasSearched && foodSearchResults.length === 0 && !isSearching">
       <mat-icon class="no-results-icon">search_off</mat-icon>
       <span>找不到相關商品</span>
     </div>
 
-    <!-- 搜尋中 -->
     <div class="searching" *ngIf="isSearching">
       <mat-spinner diameter="20"></mat-spinner>
       <span>搜尋中...</span>
@@ -97,27 +82,26 @@
 
   <mat-divider></mat-divider>
 
-  <!-- 喜愛店家清單 -->
   <div class="sidebar-content">
     <div class="favorites-header">
-      <mat-icon class="favorites-icon">favorite</mat-icon>
-      <span class="favorites-title">收藏店家</span>
+      <mat-icon class="favorites-icon">history</mat-icon>
+      <span class="favorites-title">歷史記錄</span>
     </div>
-    
+
     <ng-container *ngFor="let store of favoriteStores">
-      <div *ngIf="user" class="store-item" (click)="onSearchStore(store); closeSidebar()">
-        <!-- 根據店名判斷顯示圖標 -->
-        <img *ngIf="store.storeName.includes('7-11')" [src]="sevenElevenIconUrl" alt="7-11" class="store-icon" />
-        <img *ngIf="store.storeName.includes('全家')" [src]="familyMartIconUrl" alt="FamilyMart" class="store-icon" />
-        <span class="store-name">{{ store.storeName }}</span>
+      <div class="store-item" (click)="onSearchStore(store); closeSidebar()">
+        <img *ngIf="store.label === '7-11' || store.storeName?.includes('7-11')" [src]="sevenElevenIconUrl" alt="7-11" class="store-icon" />
+        <img *ngIf="store.label === '全家' || store.storeName?.includes('全家')" [src]="familyMartIconUrl" alt="FamilyMart" class="store-icon" />
+        <div class="store-info">
+          <span class="store-name">{{ store.storeName || (store.label + (store.name || '').replace('店', '') + '門市') }}</span>
+          <span class="store-address" *ngIf="store.addr">{{ store.addr }}</span>
+        </div>
       </div>
     </ng-container>
 
-    <!-- 登入/登出按鈕 -->
-    <div class="login-section">
-      <button class="login-btn" (click)="loginOrlogout(); closeSidebar()">
-        {{ user ? user.displayName + ' 登出' : ' 登入' }}
-      </button>
+    <div class="store-item empty-history" *ngIf="favoriteStores.length === 0">
+      <mat-icon class="store-icon">history</mat-icon>
+      <span class="store-name">目前沒有歷史記錄</span>
     </div>
   </div>
 </div>

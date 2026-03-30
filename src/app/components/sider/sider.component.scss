@@ -101,6 +101,29 @@
     font-size: 14px;
     flex: 1;
   }
+
+  .store-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .store-address {
+    color: #666;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.empty-history {
+  cursor: default;
+
+  &:hover {
+    background-color: transparent;
+  }
 }
 
 /* 登入區域 */

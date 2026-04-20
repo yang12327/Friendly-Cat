@@ -1,17 +1,33 @@
 <h1 mat-dialog-title class="text-xl font-semibold text-primary-default mb-4">
   {{ title }}
 </h1>
+
 <div class="flex items-center bg-primary-white justify-center mb-6 min-h-24">
   <div class="flex w-4/5 items-center justify-start gap-3">
-    <img *ngIf="imgPath" [src]="imgPath" alt="無搜尋結果" class="w-24 h-24 sm:w-16 sm:h-16 md:w-24 md:h-24 shrink-0">
+    <img *ngIf="imgPath" [src]="imgPath" alt="提示圖片" class="w-24 h-24 sm:w-16 sm:h-16 md:w-24 md:h-24 shrink-0">
     <p class="text-primary-default sm:text-xl font-bold m-0 leading-relaxed">
       {{ message }}
     </p>
   </div>
 </div>
-<div class="flex items-center bg-primary-white justify-center py-3">
-  <button (click)="close()" class="px-2 py-2 text-white bg-success rounded-full hover:bg-primary-default focus:outline-none focus:ring-2 focus:ring-primary-light">
+
+<div class="flex items-center bg-primary-white justify-center py-3 gap-3" *ngIf="!confirmMode">
+  <button
+    (click)="close()"
+    class="px-2 py-2 text-white bg-success rounded-full hover:bg-primary-default focus:outline-none focus:ring-2 focus:ring-primary-light">
     {{ closeMessage }}
   </button>
 </div>
 
+<div class="flex items-center bg-primary-white justify-center py-3 gap-3" *ngIf="confirmMode">
+  <button
+    (click)="close(false)"
+    class="px-4 py-2 text-primary-default bg-primary-light rounded-full hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary-light">
+    {{ cancelText }}
+  </button>
+  <button
+    (click)="close(true)"
+    class="px-4 py-2 text-white bg-red-500 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300">
+    {{ confirmText }}
+  </button>
+</div>

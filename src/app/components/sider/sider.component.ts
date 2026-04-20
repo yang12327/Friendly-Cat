@@ -24,6 +24,8 @@ export class SiderComponent {
   @Output() favoriteStoresUpdated = new EventEmitter<any>();
   @Output() searchStore = new EventEmitter<any>();
   @Output() foodSearchResult = new EventEmitter<any>();
+  @Output() openMap = new EventEmitter<void>();
+  @Output() requestDeleteHistory = new EventEmitter<any>();
 
   sevenElevenIconUrl = environment.sevenElevenUrl.icon;
   familyMartIconUrl = environment.familyMartUrl.icon;
@@ -104,6 +106,16 @@ export class SiderComponent {
 
   onSearchStore(store: any) {
     this.searchStore.emit(store);
+  }
+
+  onOpenMap(): void {
+    this.closeSidebar();
+    this.openMap.emit();
+  }
+
+  onRequestDeleteHistory(store: any, event: MouseEvent): void {
+    event.stopPropagation();
+    this.requestDeleteHistory.emit(store);
   }
 
   // 點擊搜尋按鈕

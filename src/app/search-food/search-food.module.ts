@@ -16,6 +16,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatMenuModule } from '@angular/material/menu'
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialogModule } from '@angular/material/dialog';
 
 import { RoundPipe } from '../pipes/round.pipe';
 import { EmptyInfoPipe } from '../pipes/empty-info.pipe';
@@ -23,6 +24,7 @@ import { EmptyInfoPipe } from '../pipes/empty-info.pipe';
 import { DisplayComponent } from './new-search/display/display.component';
 import { NewSearchComponent } from './new-search/new-search.component';
 import { SiderComponent } from '../components/sider/sider.component';
+import { StoreMapDialogComponent } from './new-search/store-map-dialog/store-map-dialog.component';
 
 @NgModule({
   declarations: [
@@ -30,7 +32,8 @@ import { SiderComponent } from '../components/sider/sider.component';
     NewSearchComponent,
     RoundPipe,
     EmptyInfoPipe,
-    SiderComponent
+    SiderComponent,
+    StoreMapDialogComponent
   ],
   imports: [
     CommonModule,
@@ -48,6 +51,7 @@ import { SiderComponent } from '../components/sider/sider.component';
     MatMenuModule,
     MatToolbarModule,
     MatDividerModule,
+    MatDialogModule,
   ]
 })
 export class SearchFoodModule { }

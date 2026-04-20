@@ -1,33 +1,44 @@
-import { Component, OnInit, Inject } from '@angular/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { Component, Inject } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+
+export interface MessageDialogData {
+  title?: string;
+  message?: string;
+  imgPath?: string;
+  closeMessage?: string;
+  confirmMode?: boolean;
+  confirmText?: string;
+  cancelText?: string;
+}
 
 @Component({
   selector: 'app-message-dialog',
   templateUrl: './message-dialog.component.html',
   styleUrls: ['./message-dialog.component.scss']
 })
-export class MessageDialogComponent implements OnInit {
-
+export class MessageDialogComponent {
   title: string;
   message: string;
   imgPath: string;
   closeMessage: string;
+  confirmMode: boolean;
+  confirmText: string;
+  cancelText: string;
 
   constructor(
-    public dialogRef: MatDialogRef<MessageDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any // 接收傳遞的數據
+    private readonly dialogRef: MatDialogRef<MessageDialogComponent, boolean>,
+    @Inject(MAT_DIALOG_DATA) public data: MessageDialogData
   ) {
-    // 設置傳遞的訊息
-    this.title = data.title || "提示";
-    this.message = data.message || '請稍後再試';
+    this.title = data.title || '提示';
+    this.message = data.message || '發生未知錯誤';
     this.imgPath = data.imgPath || '';
     this.closeMessage = data.closeMessage || '關閉';
+    this.confirmMode = !!data.confirmMode;
+    this.confirmText = data.confirmText || '確認';
+    this.cancelText = data.cancelText || '取消';
   }
 
-  close(): void {
-    this.dialogRef.close();
-  }
-
-  ngOnInit(): void {
+  close(isConfirmed = false): void {
+    this.dialogRef.close(isConfirmed);
   }
 }

@@ -1,9 +1,13 @@
 <mat-toolbar class="toolbar">
-  <button mat-icon-button (click)="toggleSidebar()" aria-label="Menu">
+  <button mat-icon-button (click)="toggleSidebar()" aria-label="開啟側邊欄">
     <mat-icon>menu</mat-icon>
   </button>
 
   <span class="text-with-shadow">友善黑貓 Friendly Cat</span>
+  <span class="toolbar-spacer"></span>
+  <button mat-icon-button (click)="onOpenMap()" aria-label="開啟地圖">
+    <mat-icon>map</mat-icon>
+  </button>
 </mat-toolbar>
 
 <div class="sidebar-overlay" [class.active]="sidebarOpen" (click)="closeSidebar()"></div>
@@ -11,7 +15,7 @@
 <div class="sidebar" [class.open]="sidebarOpen">
   <div class="sidebar-header">
     <h3>友善黑貓 Friendly Cat</h3>
-    <button mat-icon-button (click)="closeSidebar()" class="close-btn">
+    <button mat-icon-button (click)="closeSidebar()" class="close-btn" aria-label="關閉側邊欄">
       <mat-icon>close</mat-icon>
     </button>
   </div>
@@ -34,11 +38,7 @@
           [disabled]="!hasStoreData"
           class="search-input"
         />
-        <button
-          class="search-button"
-          (click)="onSearchClick()"
-          [disabled]="!hasStoreData"
-        >
+        <button class="search-button" (click)="onSearchClick()" [disabled]="!hasStoreData" aria-label="搜尋">
           <mat-icon>search</mat-icon>
         </button>
       </div>
@@ -90,12 +90,29 @@
 
     <ng-container *ngFor="let store of favoriteStores">
       <div class="store-item" (click)="onSearchStore(store); closeSidebar()">
-        <img *ngIf="store.label === '7-11' || store.storeName?.includes('7-11')" [src]="sevenElevenIconUrl" alt="7-11" class="store-icon" />
-        <img *ngIf="store.label === '全家' || store.storeName?.includes('全家')" [src]="familyMartIconUrl" alt="FamilyMart" class="store-icon" />
+        <img
+          *ngIf="store.label === '7-11' || store.storeName?.includes('7-11')"
+          [src]="sevenElevenIconUrl"
+          alt="7-11"
+          class="store-icon"
+        />
+        <img
+          *ngIf="store.label === '全家' || store.storeName?.includes('全家')"
+          [src]="familyMartIconUrl"
+          alt="FamilyMart"
+          class="store-icon"
+        />
         <div class="store-info">
           <span class="store-name">{{ store.storeName || (store.label + (store.name || '').replace('店', '') + '門市') }}</span>
           <span class="store-address" *ngIf="store.addr">{{ store.addr }}</span>
         </div>
+        <button
+          type="button"
+          class="history-delete-btn"
+          (click)="onRequestDeleteHistory(store, $event)"
+          aria-label="刪除歷史記錄">
+          <mat-icon>delete</mat-icon>
+        </button>
       </div>
     </ng-container>
 

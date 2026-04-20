@@ -28,6 +28,7 @@ export const environment = {
     }
   },
   foodHunterUrl: '/food-hunter-api',
+  googleMapsApiKey: '',
   firebaseConfig: {
     apiKey: "AIzaSyA3i_YLXpXuHNrmrHULrqnsIj5Z919aCfw",
     authDomain: "friendly-cat-for-you.firebaseapp.com",

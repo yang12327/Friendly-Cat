@@ -738,8 +738,16 @@ export class NewSearchComponent implements OnInit {
       this.saveLocationToStorage(finalLatitude, finalLongitude);
     }
 
-    // 使用 Food Hunter API 一次取得 7-11 + 全家門市資料
-    this.foodHunterService.getNearbyAllStores(finalLatitude, finalLongitude, 2).subscribe(
+    const locationFamilyMart: Location = {
+      Latitude: finalLatitude,
+      Longitude: finalLongitude
+    };
+
+    // 7-11 使用 Food Hunter API；全家改回原本 API 以取得即時資料
+    forkJoin({
+      sevenEleven: this.foodHunterService.getNearby711Stores(finalLatitude, finalLongitude, 2),
+      familyMart: this.familyMartService.getNearByStoreList(locationFamilyMart)
+    }).subscribe(
       ({ sevenEleven, familyMart }) => {
         // 處理 7-11 資料（已由 FoodHunterService 轉換為 StoreStockItem 格式）
         if (sevenEleven && sevenEleven.length > 0) {
@@ -749,13 +757,17 @@ export class NewSearchComponent implements OnInit {
           // 從門市商品動態建立食物分類
           this.foodCategories = this.foodHunterService.buildFoodCategories(this.nearby711Stores);
           this.foodHunterService.alignStoreCategories(this.nearby711Stores, this.foodCategories);
+        } else {
+          this.nearby711Stores = [];
         }
 
-        // 處理全家資料（已由 FoodHunterService 轉換為 StoreModel 格式）
-        if (familyMart && familyMart.length > 0) {
-          this.nearbyFamilyMartStores = familyMart.sort(
+        // 處理全家資料（原本 API 回傳格式）
+        if (familyMart && familyMart.code === 1 && Array.isArray(familyMart.data)) {
+          this.nearbyFamilyMartStores = (familyMart.data as StoreModel[]).sort(
             (a: StoreModel, b: StoreModel) => a.distance - b.distance
           );
+        } else {
+          this.nearbyFamilyMartStores = [];
         }
 
         // 等兩者完成後合併資料

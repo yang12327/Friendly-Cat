@@ -20,7 +20,7 @@
 * 會員功能 - 收藏喜愛的商店
 
 ## DEMO
-#### 連結： [友善黑貓](https://friendlycat.alan-cheng.com/)
+#### 連結： [友善黑貓](https://friendly-cat.vercel.app/)
 >
 >
 >
@@ -40,9 +40,9 @@
 >![友善黑貓商品頁](https://github.com/Alan-Cheng/Friendly-Cat/blob/main/demo/store_product.png?raw=true "商品頁面")
 >
 >
->### 3. 會員功能
+>### 3. 常用商店
 >
-> - 加入會員後可由導覽列登入，商店右方愛心可將該店加入收藏
+> - 搜尋過的商店自動收藏至歷史記錄
 >
 >![友善黑貓會員功能](https://github.com/Alan-Cheng/Friendly-Cat/blob/main/demo/member.png?raw=true "會員功能")
 >
@@ -106,5 +106,4 @@
 
 > ## 部署
 >
-> - **GitHub Pages**: 自動部署到 `https://alan-cheng.github.io/Friendly-Cat/`
-> - **Cloudflare Pages**: 自動部署到 `https://friendlycat.alan-cheng.com/`
+> - **Vercel**: 自動部署到 `https://friendly-cat.vercel.app/`

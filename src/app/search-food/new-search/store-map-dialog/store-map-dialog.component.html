@@ -1,0 +1,25 @@
+<div class="map-dialog-container">
+  <div class="dialog-header">
+    <h2>請在地圖上選擇門市</h2>
+    <button mat-icon-button (click)="close()" aria-label="關閉地圖">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item">
+      <span class="legend-dot seven"></span>
+      7-11
+    </span>
+    <span class="legend-item">
+      <span class="legend-dot family"></span>
+      全家
+    </span>
+  </div>
+
+  <div class="map-wrapper">
+    <div class="map-loading" *ngIf="isLoading">地圖載入中...</div>
+    <div class="map-error" *ngIf="!isLoading && errorMessage">{{ errorMessage }}</div>
+    <div #mapContainer class="map-container" [class.hidden]="isLoading || !!errorMessage"></div>
+  </div>
+</div>

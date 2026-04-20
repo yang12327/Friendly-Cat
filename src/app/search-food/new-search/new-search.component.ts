@@ -25,6 +25,7 @@ import { getDistance } from 'geolib';
 
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { pinyin } from 'pinyin-pro';
+import { StoreMapDialogComponent } from './store-map-dialog/store-map-dialog.component';
 
 @Component({
   selector: 'app-new-search',
@@ -57,6 +58,7 @@ export class NewSearchComponent implements OnInit {
 
   sevenElevenIconUrl = environment.sevenElevenUrl.icon;
   familyMartIconUrl = environment.familyMartUrl.icon;
+  googleMapsApiKey = environment.googleMapsApiKey || '';
 
   zipcodes: any[] = []; // 原始 API 資料
   cities: string[] = []; // 縣市清單
@@ -993,5 +995,128 @@ export class NewSearchComponent implements OnInit {
     this.storeDataService.setIsUserLocationSearch(false);
     
     this.loadingService.hide();
+  }
+
+  onHistoryDeleteMouseDown(event: MouseEvent, item: { name: string; label: string; addr: string; latitude: number; longitude: number }): void {
+    event.stopPropagation();
+    event.preventDefault();
+    this.confirmAndRemoveHistory(item);
+  }
+
+  confirmAndRemoveHistory(item: { name: string; label: string; addr: string; latitude: number; longitude: number }): void {
+    const dialogRef = this.dialog.open(MessageDialogComponent, {
+      width: '340px',
+      disableClose: true,
+      data: {
+        title: '\u522a\u9664\u6b77\u53f2\u8a18\u9304',
+        message: `\u78ba\u5b9a\u8981\u522a\u9664\u300c${item.label}${item.name}\u300d\u55ce\uff1f`,
+        confirmMode: true,
+        confirmText: '\u522a\u9664',
+        cancelText: '\u53d6\u6d88'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+      const index = this.searchHistory.findIndex((historyItem) => this.isSameHistoryItem(historyItem, item));
+      if (index >= 0) {
+        this.removeSearchHistory(index);
+      }
+    });
+  }
+
+  onOpenMap(): void {
+    if (!this.googleMapsApiKey) {
+      this.dialog.open(MessageDialogComponent, {
+        width: '340px',
+        data: {
+          title: '\u5730\u5716\u529f\u80fd\u672a\u555f\u7528',
+          message: '\u8acb\u5148\u5728 environment \u8a2d\u5b9a googleMapsApiKey',
+          closeMessage: '\u77e5\u9053\u4e86'
+        }
+      });
+      return;
+    }
+
+    const stores = this.buildAllStoresForMap();
+    if (stores.length === 0) {
+      this.dialog.open(MessageDialogComponent, {
+        width: '340px',
+        data: {
+          title: '\u76ee\u524d\u7121\u9580\u5e02\u8cc7\u6599',
+          message: '\u8acb\u7a0d\u5f8c\u518d\u8a66',
+          closeMessage: '\u95dc\u9589'
+        }
+      });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(StoreMapDialogComponent, {
+      width: '90vw',
+      maxWidth: '1200px',
+      height: '85vh',
+      autoFocus: false,
+      data: {
+        stores,
+        apiKey: this.googleMapsApiKey
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((selectedStore) => {
+      if (!selectedStore) {
+        return;
+      }
+      this.searchStoreByHistoryItem(selectedStore);
+    });
+  }
+
+  private buildAllStoresForMap(): { name: string; label: string; addr: string; latitude: number; longitude: number }[] {
+    const sevenStores = this.all711Stores
+      .map((store: any) => ({
+        name: String(store?.name || ''),
+        label: '7-11',
+        addr: String(store?.addr || ''),
+        latitude: Number(store?.lat),
+        longitude: Number(store?.lng)
+      }))
+      .filter((store: any) => Number.isFinite(store.latitude) && Number.isFinite(store.longitude));
+
+    const familyStores = this.dropDownFamilyMartList
+      .map((store: any) => ({
+        name: String(store?.Name || ''),
+        label: '全家',
+        addr: String(store?.addr || ''),
+        latitude: Number(store?.py_wgs84),
+        longitude: Number(store?.px_wgs84)
+      }))
+      .filter((store: any) => Number.isFinite(store.latitude) && Number.isFinite(store.longitude));
+
+    return [...sevenStores, ...familyStores];
+  }
+
+  private searchStoreByHistoryItem(item: { name: string; label: string; addr: string; latitude: number; longitude: number }): void {
+    const fakeEvent = {
+      option: {
+        value: {
+          ...item,
+          longitude: Number(item.longitude),
+          latitude: Number(item.latitude)
+        }
+      }
+    } as unknown as MatAutocompleteSelectedEvent;
+
+    this.onOptionSelect(fakeEvent);
+  }
+
+  private isSameHistoryItem(
+    a: { name: string; label: string; addr: string; latitude: number; longitude: number },
+    b: { name: string; label: string; addr: string; latitude: number; longitude: number }
+  ): boolean {
+    return a.name === b.name
+      && a.label === b.label
+      && Number(a.latitude) === Number(b.latitude)
+      && Number(a.longitude) === Number(b.longitude);
   }
 }

@@ -1,6 +1,7 @@
 <app-sider [user]="user" [favoriteStores]="searchHistory" (userUpdated)="onUserUpdated($event)"
   (favoriteStoresUpdated)="onFavoriteStoresUpdated($event)" (searchStore)="onFavoriteStoreSearch($event)"
-  (foodSearchResult)="onFoodSearchResult($event)"></app-sider>
+  (foodSearchResult)="onFoodSearchResult($event)" (openMap)="onOpenMap()"
+  (requestDeleteHistory)="confirmAndRemoveHistory($event)"></app-sider>
 
 
 <div class="container mx-auto px-6 bg-primary-white max-w-4xl" style="margin-top: 80px;">
@@ -97,7 +98,7 @@
         </ng-container>
         <!-- 歷史搜尋 -->
         <ng-container *ngIf="showSearchHistory && searchHistory.length > 0 && unifiedDropDownList.length === 0">
-          <mat-option *ngFor="let item of searchHistory; let i = index" [value]="item"
+          <mat-option *ngFor="let item of searchHistory" [value]="item"
             class="p-2 hover:bg-primary-light">
             <div class="flex items-center w-full">
               <div class="flex items-center gap-2 flex-1 min-w-0">
@@ -111,7 +112,7 @@
                   <span *ngIf="item.addr" class="text-xs text-gray-400 truncate">{{ item.addr }}</span>
                 </div>
               </div>
-              <button type="button" (mousedown)="$event.stopPropagation(); $event.preventDefault(); removeSearchHistory(i)"
+              <button type="button" (mousedown)="onHistoryDeleteMouseDown($event, item)"
                 class="text-gray-400 hover:text-red-500 p-1 ml-auto shrink-0 z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256">
                   <path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>

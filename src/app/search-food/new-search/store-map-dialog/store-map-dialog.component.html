@@ -6,20 +6,17 @@
     </button>
   </div>
 
-  <div class="legend">
-    <span class="legend-item">
-      <span class="legend-dot seven"></span>
-      7-11
-    </span>
-    <span class="legend-item">
-      <span class="legend-dot family"></span>
-      全家
-    </span>
-  </div>
-
   <div class="map-wrapper">
     <div class="map-loading" *ngIf="isLoading">地圖載入中...</div>
     <div class="map-error" *ngIf="!isLoading && errorMessage">{{ errorMessage }}</div>
     <div #mapContainer class="map-container" [class.hidden]="isLoading || !!errorMessage"></div>
+    <button
+      class="current-location-button"
+      type="button"
+      *ngIf="!isLoading && !errorMessage"
+      (click)="moveToCurrentLocation()"
+      aria-label="移到目前位置">
+      <mat-icon>my_location</mat-icon>
+    </button>
   </div>
 </div>

@@ -25,7 +25,7 @@ import { getDistance } from 'geolib';
 
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { pinyin } from 'pinyin-pro';
-import { StoreMapDialogComponent } from './store-map-dialog/store-map-dialog.component';
+import { MapPoint, StoreMapDialogComponent } from './store-map-dialog/store-map-dialog.component';
 
 @Component({
   selector: 'app-new-search',
@@ -585,6 +585,7 @@ export class NewSearchComponent implements OnInit {
           if (lastLocation) {
             this.latitude = lastLocation.latitude;
             this.longitude = lastLocation.longitude;
+            this.isUsingHistoryLocation = true;
           }
           return of(true);
         })
@@ -1065,6 +1066,8 @@ export class NewSearchComponent implements OnInit {
       return;
     }
 
+    const initialCenter = this.getCurrentGpsMapPoint();
+    const fallbackCenter = this.getLastStoreMapPoint();
     const dialogRef = this.dialog.open(StoreMapDialogComponent, {
       width: '90vw',
       maxWidth: '1200px',
@@ -1072,7 +1075,9 @@ export class NewSearchComponent implements OnInit {
       autoFocus: false,
       data: {
         stores,
-        apiKey: this.googleMapsApiKey
+        apiKey: this.googleMapsApiKey,
+        initialCenter,
+        fallbackCenter
       }
     });
 
@@ -1082,6 +1087,47 @@ export class NewSearchComponent implements OnInit {
       }
       this.searchStoreByHistoryItem(selectedStore);
     });
+  }
+
+  private getCurrentGpsMapPoint(): MapPoint | null {
+    if (this.isUsingHistoryLocation || !this.hasValidCoordinate(this.latitude, this.longitude)) {
+      return null;
+    }
+
+    return {
+      lat: Number(this.latitude),
+      lng: Number(this.longitude)
+    };
+  }
+
+  private getLastStoreMapPoint(): MapPoint | null {
+    const historyStore = this.searchHistory.find((store) =>
+      this.hasValidCoordinate(store.latitude, store.longitude)
+    );
+
+    if (historyStore) {
+      return {
+        lat: Number(historyStore.latitude),
+        lng: Number(historyStore.longitude)
+      };
+    }
+
+    const displayStore = this.totalStoresShowList.find((store) =>
+      this.hasValidCoordinate(store?.latitude, store?.longitude)
+    );
+
+    if (displayStore) {
+      return {
+        lat: Number(displayStore.latitude),
+        lng: Number(displayStore.longitude)
+      };
+    }
+
+    return null;
+  }
+
+  private hasValidCoordinate(latitude: unknown, longitude: unknown): boolean {
+    return Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude));
   }
 
   private buildAllStoresForMap(): { name: string; label: string; addr: string; latitude: number; longitude: number }[] {

@@ -186,40 +186,33 @@ export class NewSearchComponent implements OnInit {
     this.autoSearchByLocation();
   }
 
-  /** 自動以 GPS 搜尋，失敗時 fallback 到 localStorage 上次位置 */
+  /** 自動以 GPS 搜尋：先確認權限，已授權才自動定位，否則 fallback 到上次位置 */
   private autoSearchByLocation(): void {
     this.isUsingHistoryLocation = false;
-    from(this.geolocationService.getCurrentPosition())
+
+    from(this.geolocationService.checkPermission())
       .pipe(
-        switchMap((position) => {
-          this.latitude = position.coords.latitude;
-          this.longitude = position.coords.longitude;
-          this.saveLocationToStorage(this.latitude, this.longitude);
-          this.loadingService.show('GPS 定位成功，搜尋附近門市中喵');
-          console.log('GPS 定位成功，自動搜尋附近門市');
-          return of(true);
-        }),
-        catchError((error) => {
-          console.warn('GPS 定位失敗，嘗試使用上次搜尋位置:', this.handleError(error as GeolocationPositionError));
-          const lastLocation = this.getLastLocationFromStorage();
-          if (lastLocation) {
-            this.latitude = lastLocation.latitude;
-            this.longitude = lastLocation.longitude;
-            this.isUsingHistoryLocation = true;
-            this.loadingService.show('使用上次搜尋位置載入中喵');
-            console.log('使用上次搜尋位置:', lastLocation);
-            return of(true);
+        switchMap((permissionState) => {
+          if (permissionState === 'granted') {
+            // 已授權 → 直接取得位置（不會跳出提示）
+            return from(this.geolocationService.getCurrentPosition()).pipe(
+              switchMap((position) => {
+                this.latitude = position.coords.latitude;
+                this.longitude = position.coords.longitude;
+                this.saveLocationToStorage(this.latitude, this.longitude);
+                this.loadingService.show('GPS 定位成功，搜尋附近門市中喵');
+                console.log('GPS 定位成功，自動搜尋附近門市');
+                return of(true);
+              }),
+              catchError((error) => {
+                console.warn('已授權但定位失敗:', this.handleError(error as GeolocationPositionError));
+                return this.fallbackToLastLocation();
+              })
+            );
           }
-          // 完全沒有位置資訊
-          console.error('無法取得位置，也沒有歷史位置紀錄');
-          this.loadingService.hide();
-          this.dialog.open(MessageDialogComponent, {
-            data: {
-              message: '無法取得您的位置，請手動搜尋店家名稱',
-              imgPath: 'assets/NoResult.jpg',
-            }
-          });
-          return of(false);
+          // 尚未授權（prompt）或已拒絕（denied）→ 使用上次位置，不跳出授權提示
+          console.log('GPS 尚未授權，使用上次搜尋位置');
+          return this.fallbackToLastLocation();
         })
       )
       .subscribe((shouldSearch) => {
@@ -227,6 +220,29 @@ export class NewSearchComponent implements OnInit {
           this.searchCombineAndTransformStores();
         }
       });
+  }
+
+  /** Fallback：從 localStorage 讀取上次位置，無資料則提示手動搜尋 */
+  private fallbackToLastLocation(): Observable<boolean> {
+    const lastLocation = this.getLastLocationFromStorage();
+    if (lastLocation) {
+      this.latitude = lastLocation.latitude;
+      this.longitude = lastLocation.longitude;
+      this.isUsingHistoryLocation = true;
+      this.loadingService.show('使用上次搜尋位置載入中喵');
+      console.log('使用上次搜尋位置:', lastLocation);
+      return of(true);
+    }
+    // 完全沒有位置資訊
+    console.error('無法取得位置，也沒有歷史位置紀錄');
+    this.loadingService.hide();
+    this.dialog.open(MessageDialogComponent, {
+      data: {
+        message: '無法取得您的位置，請手動搜尋店家名稱或按下定位按鈕授權 GPS',
+        imgPath: 'assets/NoResult.jpg',
+      }
+    });
+    return of(false);
   }
 
   getFamilyMartAllStore() {

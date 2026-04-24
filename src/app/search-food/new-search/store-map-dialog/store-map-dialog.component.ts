@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Inject, NgZone, OnDestroy, ViewChild } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { SearchHistoryItem } from '../models/search-history-item.model';
 import { GoogleMapsLoaderService } from '../services/google-maps-loader.service';
@@ -26,19 +26,23 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
 
   isLoading = true;
   errorMessage = '';
+  selectedStore: SearchHistoryItem | null = null;
 
   private googleObj: any = null;
   private map: any = null;
   private currentMarkers = new Map<string, any>();
   private currentClusterMarkers = new Map<string, { marker: any; signature: string }>();
   private currentLocationMarker: any = null;
+  private currentLocationOverlayClass: any = null;
   private lastCurrentLocation: MapPoint | null = null;
   private idleListener: any = null;
   private pendingFrame: number | null = null;
+  private infoWindow: any = null;
 
   constructor(
     private readonly dialogRef: MatDialogRef<StoreMapDialogComponent, SearchHistoryItem | null>,
     private readonly googleMapsLoader: GoogleMapsLoaderService,
+    private readonly zone: NgZone,
     @Inject(MAT_DIALOG_DATA) public data: StoreMapDialogData
   ) {}
 
@@ -70,7 +74,78 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
     this.dialogRef.close(null);
   }
 
+  focusStore(store: SearchHistoryItem): void {
+    this.zone.run(() => {
+      this.selectedStore = store;
+    });
+    if (this.map && this.googleObj) {
+      (window as any).__storeMapConfirm = () => {
+        this.zone.run(() => this.confirmSelection());
+      };
+
+      const isSeven = store.label === '7-11';
+      const labelColor = isSeven ? '#f58220' : '#0072bc';
+      const labelBg = isSeven ? '#fff7ed' : '#eff6ff';
+
+      const headerContent = document.createElement('div');
+      headerContent.style.cssText =
+        "display:flex;align-items:center;gap:8px;padding:16px 0 16px 14px;" +
+        "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" +
+        "min-width:0;flex:1;";
+      headerContent.innerHTML = `
+        <span style="display:inline-block;font-size:11px;font-weight:700;color:${labelColor};background:${labelBg};padding:2px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0;">${store.label}</span>
+        <span style="font-size:14px;font-weight:700;color:#2f2f2f;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">${store.name}</span>
+      `;
+
+      const bodyContent = `
+        <div style="min-width:220px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+          <div style="padding:0 12px;font-size:12px;color:#6b7280;line-height:1.4;word-break:break-word">
+            ${store.addr}
+          </div>
+          <div style="padding:12px 12px 12px 12px;border-top:1px solid #e5e7eb;margin-top:10px;">
+            <button onclick="window.__storeMapConfirm()"
+              style="width:100%;padding:8px 12px;border:none;border-radius:4px;background:#1976d2;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+              載入商品
+            </button>
+          </div>
+        </div>
+      `;
+
+      if (this.infoWindow) {
+        this.infoWindow.close();
+      }
+
+      this.infoWindow = new this.googleObj.maps.InfoWindow({
+        content: bodyContent,
+        headerContent,
+        position: {
+          lat: store.latitude,
+          lng: store.longitude
+        },
+        pixelOffset: new this.googleObj.maps.Size(0, -36)
+      });
+
+      this.infoWindow.open(this.map);
+    }
+  }
+
+  confirmSelection(): void {
+    if (this.selectedStore) {
+      this.dialogRef.close({
+        name: this.selectedStore.name,
+        label: this.selectedStore.label,
+        addr: this.selectedStore.addr,
+        latitude: this.selectedStore.latitude,
+        longitude: this.selectedStore.longitude
+      });
+    }
+  }
+
   ngOnDestroy(): void {
+    if (this.infoWindow) {
+      this.infoWindow.close();
+      this.infoWindow = null;
+    }
     this.destroyMarkers();
     if (this.currentLocationMarker) {
       this.googleObj?.maps.event.clearInstanceListeners(this.currentLocationMarker);
@@ -130,6 +205,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
     const FAMILY_LABEL_COLOR = '#0072bc';
     const CLUSTER_COLOR = '#2e7d32';
     const StoreOverlayMarker = this.createStoreOverlayMarkerClass(googleObj);
+    this.currentLocationOverlayClass = this.createCurrentLocationOverlayClass(googleObj);
     const storeOrderMap = new Map(
       this.data.stores.map((store, index) => [this.getStoreKey(store), index] as const)
     );
@@ -137,14 +213,8 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
     const createStoreMarker = (store: SearchHistoryItem, index: number) => {
       const isSeven = store.label === '7-11';
       const markerPosition = { lat: store.latitude, lng: store.longitude };
-      const closeWithStore = () => {
-        this.dialogRef.close({
-          name: store.name,
-          label: store.label,
-          addr: store.addr,
-          latitude: store.latitude,
-          longitude: store.longitude
-        });
+      const focusStore = () => {
+        this.focusStore(store);
       };
 
       const marker = new StoreOverlayMarker({
@@ -154,7 +224,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         labelText: this.getStoreShortName(store),
         labelColor: isSeven ? SEVEN_LABEL_COLOR : FAMILY_LABEL_COLOR,
         zIndex: this.getStoreMarkerZIndex(store, index),
-        onClick: closeWithStore,
+        onClick: focusStore,
         map
       });
 
@@ -313,6 +383,12 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       });
     });
 
+    map.addListener('click', () => {
+      if (this.infoWindow) {
+        this.infoWindow.close();
+      }
+    });
+
     this.initializeCurrentLocation();
   }
 
@@ -397,28 +473,70 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
   }
 
   private setCurrentLocationMarker(position: MapPoint): void {
-    if (!this.map || !this.googleObj) {
+    if (!this.map || !this.googleObj || !this.currentLocationOverlayClass) {
       return;
     }
 
     if (!this.currentLocationMarker) {
-      this.currentLocationMarker = new this.googleObj.maps.Marker({
-        map: this.map,
-        title: '目前位置',
-        clickable: false,
-        icon: {
-          path: this.googleObj.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#1a73e8',
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 3
-        },
-        zIndex: 100000000
-      });
+      this.currentLocationMarker = new this.currentLocationOverlayClass(position, this.map);
+      return;
     }
 
     this.currentLocationMarker.setPosition(position);
+  }
+
+  private createCurrentLocationOverlayClass(googleObj: any): any {
+    return class CurrentLocationOverlay extends googleObj.maps.OverlayView {
+      private positionLatLng: any;
+      private element: HTMLDivElement | null = null;
+
+      constructor(position: MapPoint, map: any) {
+        super();
+        this.positionLatLng = new googleObj.maps.LatLng(position.lat, position.lng);
+        (this as any).setMap(map);
+      }
+
+      onAdd(): void {
+        const element = document.createElement('div');
+        element.style.position = 'absolute';
+        element.style.width = '16px';
+        element.style.height = '16px';
+        element.style.borderRadius = '50%';
+        element.style.background = '#1a73e8';
+        element.style.border = '3px solid #ffffff';
+        element.style.boxSizing = 'content-box';
+        element.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.35)';
+        element.style.pointerEvents = 'none';
+        element.style.willChange = 'transform';
+        this.element = element;
+        (this as any).getPanes()?.floatPane.appendChild(element);
+      }
+
+      draw(): void {
+        if (!this.element) {
+          return;
+        }
+        const projection = (this as any).getProjection();
+        const point = projection?.fromLatLngToDivPixel(this.positionLatLng);
+        if (!point) {
+          return;
+        }
+        this.element.style.transform = `translate(${point.x - 11}px, ${point.y - 11}px)`;
+      }
+
+      onRemove(): void {
+        if (!this.element) {
+          return;
+        }
+        this.element.remove();
+        this.element = null;
+      }
+
+      setPosition(position: MapPoint): void {
+        this.positionLatLng = new googleObj.maps.LatLng(position.lat, position.lng);
+        this.draw();
+      }
+    };
   }
 
   private buildVisibleClusters(
@@ -596,7 +714,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         icon.style.marginTop = '1px';
 
         element.append(label, icon);
-        element.addEventListener('click', this.clickHandler);
+        element.addEventListener('click', this.handleClick);
         element.addEventListener('keydown', this.handleKeyDown);
         this.element = element;
         (this as any).getPanes()?.overlayMouseTarget.appendChild(element);
@@ -623,7 +741,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
           return;
         }
 
-        this.element.removeEventListener('click', this.clickHandler);
+        this.element.removeEventListener('click', this.handleClick);
         this.element.removeEventListener('keydown', this.handleKeyDown);
         this.element.remove();
         this.element = null;
@@ -648,6 +766,11 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
           this.element.style.zIndex = String(zIndex);
         }
       }
+
+      private handleClick = (event: MouseEvent) => {
+        event.stopPropagation();
+        this.clickHandler();
+      };
 
       private handleKeyDown = (event: KeyboardEvent) => {
         if (event.key !== 'Enter' && event.key !== ' ') {

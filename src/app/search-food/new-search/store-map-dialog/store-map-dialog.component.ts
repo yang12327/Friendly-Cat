@@ -803,6 +803,13 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
   }
 
   private getStoreShortName(store: SearchHistoryItem): string {
+    if (store.label === '全家') {
+      const chars = Array.from((store.name ?? '').trim());
+      const shortName = chars.slice(4, 6).join('');
+      if (shortName) {
+        return shortName;
+      }
+    }
     const normalizedName = this.normalizeStoreName(store.name);
     const sourceName = normalizedName || store.name.trim() || store.label;
     return Array.from(sourceName).slice(0, 2).join('');

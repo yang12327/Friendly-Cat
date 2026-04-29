@@ -1,19 +1,24 @@
-<div class="map-dialog-container">
-  <button class="dialog-close-button" mat-icon-button (click)="close()" aria-label="關閉地圖">
-    <mat-icon>close</mat-icon>
-  </button>
+<div class="store-map-overlay" [class.is-visible]="visible">
+  <div class="store-map-backdrop" (click)="close()"></div>
+  <div class="store-map-panel">
+    <div class="map-dialog-container">
+      <button class="dialog-close-button" mat-icon-button (click)="close()" aria-label="關閉地圖">
+        <mat-icon>close</mat-icon>
+      </button>
 
-  <div class="map-wrapper">
-    <div class="map-loading" *ngIf="isLoading">地圖載入中...</div>
-    <div class="map-error" *ngIf="!isLoading && errorMessage">{{ errorMessage }}</div>
-    <div #mapContainer class="map-container" [class.hidden]="isLoading || !!errorMessage"></div>
-    <button
-      class="current-location-button"
-      type="button"
-      *ngIf="!isLoading && !errorMessage"
-      (click)="moveToCurrentLocation()"
-      aria-label="移到目前位置">
-      <mat-icon>my_location</mat-icon>
-    </button>
+      <div class="map-wrapper">
+        <div class="map-loading" *ngIf="isLoading">地圖載入中...</div>
+        <div class="map-error" *ngIf="!isLoading && errorMessage">{{ errorMessage }}</div>
+        <div #mapContainer class="map-container" [class.hidden]="isLoading || !!errorMessage"></div>
+        <button
+          class="current-location-button"
+          type="button"
+          *ngIf="!isLoading && !errorMessage"
+          (click)="moveToCurrentLocation()"
+          aria-label="移到目前位置">
+          <mat-icon>my_location</mat-icon>
+        </button>
+      </div>
+    </div>
   </div>
 </div>

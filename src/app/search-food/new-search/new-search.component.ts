@@ -25,7 +25,8 @@ import { getDistance } from 'geolib';
 
 import { AngularFirestore } from '@angular/fire/compat/firestore';
 import { pinyin } from 'pinyin-pro';
-import { MapPoint, StoreMapDialogComponent } from './store-map-dialog/store-map-dialog.component';
+import { MapPoint } from './store-map-dialog/store-map-dialog.component';
+import { SearchHistoryItem } from './models/search-history-item.model';
 
 @Component({
   selector: 'app-new-search',
@@ -91,6 +92,12 @@ export class NewSearchComponent implements OnInit {
   isUsingHistoryLocation = false; // 是否使用歷史位置載入
   searchHistory: { name: string; label: string; addr: string; latitude: number; longitude: number }[] = [];
   showSearchHistory = false; // 是否顯示歷史搜尋清單
+
+  // 地圖 dialog 狀態（常駐元件，關閉時只隱藏，下次開啟不重新初始化）
+  isMapVisible = false;
+  mapStores: SearchHistoryItem[] = [];
+  mapInitialCenter: MapPoint | null = null;
+  mapFallbackCenter: MapPoint | null = null;
 
   @ViewChild(MatAutocompleteTrigger) autocompleteTrigger!: MatAutocompleteTrigger;
 
@@ -830,7 +837,8 @@ export class NewSearchComponent implements OnInit {
   }
 
   fStoreName(storeName: string): string {
-    return storeName ? storeName.replace('全家', '') : ''
+    if (!storeName) return '';
+    return storeName.trim().replace(/^全家/, '').replace(/店$/, '');
   }
 
   /**
@@ -1082,27 +1090,18 @@ export class NewSearchComponent implements OnInit {
       return;
     }
 
-    const initialCenter = this.getCurrentGpsMapPoint();
-    const fallbackCenter = this.getLastStoreMapPoint();
-    const dialogRef = this.dialog.open(StoreMapDialogComponent, {
-      width: '90vw',
-      maxWidth: '1200px',
-      height: '85vh',
-      autoFocus: false,
-      data: {
-        stores,
-        apiKey: this.googleMapsApiKey,
-        initialCenter,
-        fallbackCenter
-      }
-    });
+    this.mapStores = stores;
+    this.mapInitialCenter = this.getCurrentGpsMapPoint();
+    this.mapFallbackCenter = this.getLastStoreMapPoint();
+    this.isMapVisible = true;
+  }
 
-    dialogRef.afterClosed().subscribe((selectedStore) => {
-      if (!selectedStore) {
-        return;
-      }
-      this.searchStoreByHistoryItem(selectedStore);
-    });
+  onMapClosed(selectedStore: SearchHistoryItem | null): void {
+    this.isMapVisible = false;
+    if (!selectedStore) {
+      return;
+    }
+    this.searchStoreByHistoryItem(selectedStore);
   }
 
   private getCurrentGpsMapPoint(): MapPoint | null {

@@ -1,3 +1,36 @@
+.store-map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+
+  &.is-visible {
+    display: block;
+  }
+}
+
+.store-map-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.store-map-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90vw;
+  max-width: 1200px;
+  height: 85vh;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 11px 15px -7px rgba(0, 0, 0, 0.2),
+    0 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0 9px 46px 8px rgba(0, 0, 0, 0.12);
+}
+
 .map-dialog-container {
   position: relative;
   width: 100%;

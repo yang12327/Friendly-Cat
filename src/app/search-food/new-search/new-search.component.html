@@ -3,6 +3,14 @@
   (foodSearchResult)="onFoodSearchResult($event)" (openMap)="onOpenMap()"
   (requestDeleteHistory)="confirmAndRemoveHistory($event)"></app-sider>
 
+<app-store-map-dialog
+  [visible]="isMapVisible"
+  [stores]="mapStores"
+  [apiKey]="googleMapsApiKey"
+  [initialCenter]="mapInitialCenter"
+  [fallbackCenter]="mapFallbackCenter"
+  (closed)="onMapClosed($event)"></app-store-map-dialog>
+
 
 <div class="container mx-auto px-6 bg-primary-white max-w-4xl" style="margin-top: 80px;">
   <ng-container>
@@ -175,7 +183,7 @@
                     </span>
                   </div>
                   <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
-                    7-11{{ store.StoreName }}門市
+                    {{ store.StoreName }}
                     <a href="https://www.google.com/maps/search/7-ELEVEN{{ store.StoreName }}門市" target="_blank"
                       class="ml-auto">
                       <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
@@ -258,7 +266,7 @@
                   </span>
                 </div>
                 <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
-                  {{ store.name }}
+                  {{ fStoreName(store.name) }}
                   <a href="https://www.google.com/maps/search/全家便利商店{{ fStoreName(store.name) }}" target="_blank"
                     class="ml-auto">
                     <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
@@ -356,7 +364,7 @@
                     </span>
                   </div>
                   <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
-                    7-11{{ store.StoreName }}門市
+                    {{ store.StoreName }}
                     <a href="https://www.google.com/maps/search/7-ELEVEN{{ store.StoreName }}門市" target="_blank"
                       class="ml-auto">
                       <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />
@@ -439,7 +447,7 @@
                   </span>
                 </div>
                 <h2 class="flex items-center text-dark text-base font-medium leading-normal line-clamp-1 store-title">
-                  {{ store.name }}
+                  {{ fStoreName(store.name) }}
                   <a href="https://www.google.com/maps/search/全家便利商店{{ fStoreName(store.name) }}" target="_blank"
                     class="ml-auto">
                     <img src="assets/GoogleMap_icon.png" alt="Google Maps" class="w-6 h-6 inline-block" />

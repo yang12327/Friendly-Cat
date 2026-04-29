@@ -1,7 +1,18 @@
-import { AfterViewInit, Component, ElementRef, Inject, NgZone, OnDestroy, ViewChild } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  NgZone,
+  OnChanges,
+  OnDestroy,
+  Output,
+  SimpleChanges,
+  ViewChild
+} from '@angular/core';
 import { SearchHistoryItem } from '../models/search-history-item.model';
 import { GoogleMapsLoaderService } from '../services/google-maps-loader.service';
+import { GeolocationService } from '../../../services/geolocation.service';
 import { environment } from '../../../../environments/environment';
 
 export interface MapPoint {
@@ -9,20 +20,21 @@ export interface MapPoint {
   lng: number;
 }
 
-export interface StoreMapDialogData {
-  stores: SearchHistoryItem[];
-  apiKey: string;
-  initialCenter?: MapPoint | null;
-  fallbackCenter?: MapPoint | null;
-}
-
 @Component({
   selector: 'app-store-map-dialog',
   templateUrl: './store-map-dialog.component.html',
   styleUrls: ['./store-map-dialog.component.scss']
 })
-export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
+export class StoreMapDialogComponent implements OnChanges, OnDestroy {
   @ViewChild('mapContainer', { static: false }) mapContainer!: ElementRef<HTMLDivElement>;
+
+  @Input() visible = false;
+  @Input() stores: SearchHistoryItem[] = [];
+  @Input() apiKey = '';
+  @Input() initialCenter: MapPoint | null = null;
+  @Input() fallbackCenter: MapPoint | null = null;
+
+  @Output() closed = new EventEmitter<SearchHistoryItem | null>();
 
   isLoading = true;
   errorMessage = '';
@@ -38,40 +50,98 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
   private idleListener: any = null;
   private pendingFrame: number | null = null;
   private infoWindow: any = null;
+  private storeOrderMap = new Map<string, number>();
+  private syncVisibleMarkersFn: (() => void) | null = null;
+  private initialized = false;
+  private initializing = false;
 
   constructor(
-    private readonly dialogRef: MatDialogRef<StoreMapDialogComponent, SearchHistoryItem | null>,
     private readonly googleMapsLoader: GoogleMapsLoaderService,
-    private readonly zone: NgZone,
-    @Inject(MAT_DIALOG_DATA) public data: StoreMapDialogData
+    private readonly geolocationService: GeolocationService,
+    private readonly zone: NgZone
   ) {}
 
-  async ngAfterViewInit(): Promise<void> {
-    if (!this.data?.apiKey) {
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible']) {
+      const becameVisible = changes['visible'].currentValue && !changes['visible'].previousValue;
+      if (becameVisible) {
+        this.handleOpen();
+      }
+      return;
+    }
+
+    if (this.initialized && changes['stores'] && !changes['stores'].firstChange) {
+      this.refreshStoreOrderMap();
+      if (this.syncVisibleMarkersFn) {
+        this.syncVisibleMarkersFn();
+      }
+    }
+  }
+
+  private handleOpen(): void {
+    if (this.initialized) {
+      this.recenterOnReopen();
+      return;
+    }
+
+    if (this.initializing) {
+      return;
+    }
+
+    this.errorMessage = '';
+
+    if (!this.apiKey) {
       this.isLoading = false;
       this.errorMessage = '尚未設定 Google Maps API Key';
       return;
     }
 
-    if (!this.data?.stores?.length) {
+    if (!this.stores?.length) {
       this.isLoading = false;
       this.errorMessage = '目前沒有可顯示的門市資料';
       return;
     }
 
-    try {
-      const googleObj = await this.googleMapsLoader.load(this.data.apiKey);
-      this.initMap(googleObj);
-      this.isLoading = false;
-    } catch (error) {
-      console.error('Google Maps 初始化失敗:', error);
-      this.isLoading = false;
-      this.errorMessage = '地圖初始化失敗，請稍後再試';
+    this.initializing = true;
+    this.isLoading = true;
+
+    setTimeout(async () => {
+      try {
+        const googleObj = await this.googleMapsLoader.load(this.apiKey);
+        this.initMap(googleObj);
+        this.initialized = true;
+        this.isLoading = false;
+      } catch (error) {
+        console.error('Google Maps 初始化失敗:', error);
+        this.isLoading = false;
+        this.errorMessage = '地圖初始化失敗，請稍後再試';
+      } finally {
+        this.initializing = false;
+      }
+    });
+  }
+
+  private recenterOnReopen(): void {
+    if (!this.map) {
+      return;
     }
+
+    if (this.infoWindow) {
+      this.infoWindow.close();
+    }
+
+    setTimeout(() => {
+      if (this.map && this.googleObj) {
+        this.googleObj.maps.event.trigger(this.map, 'resize');
+      }
+    });
   }
 
   close(): void {
-    this.dialogRef.close(null);
+    if (this.infoWindow) {
+      this.infoWindow.close();
+    }
+    this.closed.emit(null);
   }
 
   focusStore(store: SearchHistoryItem): void {
@@ -86,6 +156,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       const isSeven = store.label === '7-11';
       const labelColor = isSeven ? '#f58220' : '#0072bc';
       const labelBg = isSeven ? '#fff7ed' : '#eff6ff';
+      const displayName = this.getDisplayName(store);
 
       const headerContent = document.createElement('div');
       headerContent.style.cssText =
@@ -94,7 +165,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         "min-width:0;flex:1;";
       headerContent.innerHTML = `
         <span style="display:inline-block;font-size:11px;font-weight:700;color:${labelColor};background:${labelBg};padding:2px 8px;border-radius:4px;white-space:nowrap;flex-shrink:0;">${store.label}</span>
-        <span style="font-size:14px;font-weight:700;color:#2f2f2f;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">${store.name}</span>
+        <span style="font-size:14px;font-weight:700;color:#2f2f2f;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;">${displayName}</span>
       `;
 
       const bodyContent = `
@@ -131,7 +202,10 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
 
   confirmSelection(): void {
     if (this.selectedStore) {
-      this.dialogRef.close({
+      if (this.infoWindow) {
+        this.infoWindow.close();
+      }
+      this.closed.emit({
         name: this.selectedStore.name,
         label: this.selectedStore.label,
         addr: this.selectedStore.addr,
@@ -139,6 +213,12 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         longitude: this.selectedStore.longitude
       });
     }
+  }
+
+  private refreshStoreOrderMap(): void {
+    this.storeOrderMap = new Map<string, number>(
+      (this.stores ?? []).map((store, index) => [this.getStoreKey(store), index] as const)
+    );
   }
 
   ngOnDestroy(): void {
@@ -206,9 +286,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
     const CLUSTER_COLOR = '#2e7d32';
     const StoreOverlayMarker = this.createStoreOverlayMarkerClass(googleObj);
     this.currentLocationOverlayClass = this.createCurrentLocationOverlayClass(googleObj);
-    const storeOrderMap = new Map(
-      this.data.stores.map((store, index) => [this.getStoreKey(store), index] as const)
-    );
+    this.refreshStoreOrderMap();
 
     const createStoreMarker = (store: SearchHistoryItem, index: number) => {
       const isSeven = store.label === '7-11';
@@ -221,7 +299,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         position: markerPosition,
         title: store.name,
         iconUrl: isSeven ? environment.sevenElevenUrl.icon : environment.familyMartUrl.icon,
-        labelText: this.getStoreShortName(store),
+        labelText: this.getDisplayName(store),
         labelColor: isSeven ? SEVEN_LABEL_COLOR : FAMILY_LABEL_COLOR,
         zIndex: this.getStoreMarkerZIndex(store, index),
         onClick: focusStore,
@@ -273,20 +351,20 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       const east = ne.lng();
       const west = sw.lng();
 
-      const visible = this.data.stores.filter((s) =>
+      const visible = (this.stores ?? []).filter((s) =>
         s.latitude <= north &&
         s.latitude >= south &&
         s.longitude <= east &&
         s.longitude >= west
           );
 
-      const visibleStoreMap = new Map(
+      const visibleStoreMap = new Map<string, { store: SearchHistoryItem; index: number }>(
         visible.map((store, index) => [this.getStoreKey(store), { store, index }] as const)
       );
       const useCluster = visible.length > EXPAND_THRESHOLD;
       const desiredStoreKeys = new Set<string>();
       const desiredClusters = useCluster
-        ? this.buildVisibleClusters(googleObj, map, visible, storeOrderMap, CLUSTER_GRID_SIZE)
+        ? this.buildVisibleClusters(googleObj, map, visible, this.storeOrderMap, CLUSTER_GRID_SIZE)
         : new Map<string, {
           count: number;
           position: MapPoint;
@@ -327,7 +405,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
 
         const marker = createStoreMarker(
           visibleStore.store,
-          storeOrderMap.get(key) ?? visibleStore.index
+          this.storeOrderMap.get(key) ?? visibleStore.index
         );
         this.currentMarkers.set(key, marker);
       }
@@ -389,6 +467,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    this.syncVisibleMarkersFn = syncVisibleMarkers;
     this.initializeCurrentLocation();
   }
 
@@ -400,16 +479,24 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
     );
   }
 
-  private initializeCurrentLocation(): void {
-    if (this.isValidMapPoint(this.data.initialCenter)) {
-      this.centerOnCurrentLocation(this.data.initialCenter);
+  private async initializeCurrentLocation(): Promise<void> {
+    let permission: PermissionState = 'prompt';
+    try {
+      permission = await this.geolocationService.checkPermission();
+    } catch {
+      permission = 'prompt';
+    }
+
+    if (permission === 'granted') {
+      this.requestCurrentLocation(
+        (position) => this.centerOnCurrentLocation(position),
+        () => this.centerOnFallbackLocation()
+      );
       return;
     }
 
-    this.requestCurrentLocation(
-      (position) => this.centerOnCurrentLocation(position),
-      () => this.centerOnFallbackLocation()
-    );
+    // 沒有 GPS 權限時，直接使用歷史地點（不主動要求權限）
+    this.centerOnFallbackLocation();
   }
 
   private requestCurrentLocation(onSuccess: (position: MapPoint) => void, onError: () => void): void {
@@ -454,22 +541,22 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.isValidMapPoint(this.data.initialCenter)) {
-      this.map.panTo(this.data.initialCenter);
+    if (this.isValidMapPoint(this.initialCenter)) {
+      this.map.panTo(this.initialCenter);
       return;
     }
 
-    if (this.isValidMapPoint(this.data.fallbackCenter)) {
-      this.map.panTo(this.data.fallbackCenter);
+    if (this.isValidMapPoint(this.fallbackCenter)) {
+      this.map.panTo(this.fallbackCenter);
     }
   }
 
   private centerOnFallbackLocation(): void {
-    if (!this.map || !this.isValidMapPoint(this.data.fallbackCenter)) {
+    if (!this.map || !this.isValidMapPoint(this.fallbackCenter)) {
       return;
     }
 
-    this.map.panTo(this.data.fallbackCenter);
+    this.map.panTo(this.fallbackCenter);
   }
 
   private setCurrentLocationMarker(position: MapPoint): void {
@@ -632,10 +719,10 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
 
   private createStoreOverlayMarkerClass(googleObj: any): any {
     const width = 32;
-    const height = 48;
     const radius = 7;
-    const anchorX = width / 2;
-    const anchorY = 32;
+    const ICON_SIZE = 24;
+    const ICON_MARGIN = 1;
+    const ANCHOR_OFFSET_FROM_BOTTOM = 16;
 
     return class StoreOverlayMarker extends googleObj.maps.OverlayView {
       private positionLatLng: any;
@@ -646,6 +733,8 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       private readonly labelColor: string;
       private zIndexValue: number;
       private readonly clickHandler: () => void;
+      private anchorX = width / 2;
+      private anchorY = 32;
 
       constructor(options: {
         position: MapPoint;
@@ -672,13 +761,43 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
       }
 
       onAdd(): void {
+        const chars = Array.from(this.labelText || '');
+        const labelLength = chars.length;
+        const isTwoLine = labelLength >= 4;
+
+        let firstLine = this.labelText || '';
+        let secondLine = '';
+        if (isTwoLine) {
+          firstLine = chars.slice(0, 2).join('');
+          secondLine = chars.slice(2).join('');
+        }
+
+        let fontSize: number;
+        if (labelLength <= 2) {
+          fontSize = 12;
+        } else if (labelLength === 3) {
+          fontSize = 10;
+        } else if (labelLength === 4) {
+          fontSize = 9;
+        } else if (labelLength === 5) {
+          fontSize = 8;
+        } else {
+          fontSize = 7;
+        }
+
+        const lineHeight = fontSize;
+        const labelHeight = isTwoLine ? lineHeight * 2 : 18;
+        const totalHeight = labelHeight + ICON_MARGIN + ICON_SIZE;
+        this.anchorX = width / 2;
+        this.anchorY = totalHeight - ANCHOR_OFFSET_FROM_BOTTOM;
+
         const element = document.createElement('div');
         element.title = this.titleText;
         element.setAttribute('role', 'button');
         element.tabIndex = 0;
         element.style.position = 'absolute';
         element.style.width = `${width}px`;
-        element.style.height = `${height}px`;
+        element.style.height = `${totalHeight}px`;
         element.style.boxSizing = 'border-box';
         element.style.display = 'flex';
         element.style.flexDirection = 'column';
@@ -693,25 +812,41 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         element.style.zIndex = String(this.zIndexValue);
 
         const label = document.createElement('div');
-        label.textContent = this.labelText;
         label.style.width = '100%';
-        label.style.height = '18px';
-        label.style.lineHeight = '18px';
-        label.style.textAlign = 'center';
+        label.style.height = `${labelHeight}px`;
+        label.style.display = 'flex';
+        label.style.flexDirection = 'column';
+        label.style.alignItems = 'center';
+        label.style.justifyContent = 'center';
         label.style.color = this.labelColor;
-        label.style.fontSize = '12px';
+        label.style.fontSize = `${fontSize}px`;
         label.style.fontWeight = '700';
-        label.style.whiteSpace = 'nowrap';
-        label.style.overflow = 'hidden';
+        label.style.lineHeight = `${lineHeight}px`;
+        label.style.padding = '0 1px';
+        label.style.boxSizing = 'border-box';
+
+        const line1 = document.createElement('div');
+        line1.textContent = firstLine;
+        line1.style.whiteSpace = 'nowrap';
+        line1.style.overflow = 'hidden';
+        label.appendChild(line1);
+
+        if (isTwoLine) {
+          const line2 = document.createElement('div');
+          line2.textContent = secondLine;
+          line2.style.whiteSpace = 'nowrap';
+          line2.style.overflow = 'hidden';
+          label.appendChild(line2);
+        }
 
         const icon = document.createElement('img');
         icon.src = this.iconUrl;
         icon.alt = '';
         icon.draggable = false;
-        icon.style.width = '24px';
-        icon.style.height = '24px';
+        icon.style.width = `${ICON_SIZE}px`;
+        icon.style.height = `${ICON_SIZE}px`;
         icon.style.objectFit = 'contain';
-        icon.style.marginTop = '1px';
+        icon.style.marginTop = `${ICON_MARGIN}px`;
 
         element.append(label, icon);
         element.addEventListener('click', this.handleClick);
@@ -732,7 +867,7 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
         }
 
         this.element.style.transform =
-          `translate(${point.x}px, ${point.y}px) translate(${-anchorX}px, ${-anchorY}px)`;
+          `translate(${point.x}px, ${point.y}px) translate(${-this.anchorX}px, ${-this.anchorY}px)`;
         this.element.style.zIndex = String(this.zIndexValue);
       }
 
@@ -802,41 +937,23 @@ export class StoreMapDialogComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private getStoreShortName(store: SearchHistoryItem): string {
+  private getDisplayName(store: SearchHistoryItem): string {
+    const name = (store.name ?? '').trim();
     if (store.label === '全家') {
-      const chars = Array.from((store.name ?? '').trim());
-      const shortName = chars.slice(4, 6).join('');
-      if (shortName) {
-        return shortName;
-      }
+      return name.replace(/^全家/, '').replace(/店$/, '');
     }
-    const normalizedName = this.normalizeStoreName(store.name);
-    const sourceName = normalizedName || store.name.trim() || store.label;
-    return Array.from(sourceName).slice(0, 2).join('');
-  }
-
-  private normalizeStoreName(name: string): string {
-    if (!name) {
-      return '';
-    }
-
-    return name
-      .trim()
-      .replace(/^(7\s*[-－]?\s*11|7\s*[-－]?\s*ELEVEN|統一超商)\s*/i, '')
-      .replace(/^(全家便利商店|全家|FamilyMart)\s*/i, '')
-      .replace(/門市$/, '')
-      .trim();
+    return name;
   }
 
   private computeInitialCenter(): { lat: number; lng: number } {
-    if (this.isValidMapPoint(this.data.initialCenter)) {
-      return this.data.initialCenter;
+    if (this.isValidMapPoint(this.initialCenter)) {
+      return this.initialCenter;
     }
-    if (this.isValidMapPoint(this.data.fallbackCenter)) {
-      return this.data.fallbackCenter;
+    if (this.isValidMapPoint(this.fallbackCenter)) {
+      return this.fallbackCenter;
     }
 
-    const stores = this.data.stores;
+    const stores = this.stores;
     if (!stores?.length) {
       return { lat: 23.6978, lng: 120.9605 };
     }
